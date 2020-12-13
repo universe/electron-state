@@ -6,6 +6,7 @@
   "types": "index.d.ts",
   "scripts": {
     "build": "rm -rf dist && tsc --b tsconfig.json",
+    "start": "yarn build && electron ./dist/test/app/main.js",
     "test": "yarn lint && mocha test dist/test",
     "lint": "eslint **/*.ts",
     "lint:fix": "eslint **/*.ts --fix",

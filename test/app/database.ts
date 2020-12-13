@@ -9,8 +9,8 @@ export const db = ({
   users: {
     getByEmail(email: string): User {
       return {
-        firstName: 'Adam',
-        lastName: 'Miller',
+        firstName: 'Test',
+        lastName: 'User',
         email,
         password: 'password',
       };

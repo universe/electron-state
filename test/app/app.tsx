@@ -2,15 +2,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import { useElectronState } from '../../src/hooks';
 
-import TestState from './TestState';
 import UserState from './UserState';
-
-console.log(TestState.toJSON());
-
-(async() => {
-  console.log(await TestState.multiplyInMain(2, 2));
-  console.log(await TestState.multiplyInRenderer(2, 3));
-})();
 
 async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
   evt.preventDefault();
@@ -21,7 +13,7 @@ async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
     return;
   }
   const logInSuccess = await UserState.logIn(email, password);
-  alert(logInSuccess ? 'Successfully logged in!' : 'Incorrect login information.');
+  alert(logInSuccess ? 'Successfully logged in!' : 'Incorrect login information. Use the password "password".');
 }
 
 function App(): JSX.Element {
@@ -33,8 +25,8 @@ function App(): JSX.Element {
     </section>;
   }
   return <form onSubmit={handleSubmit}>
-    <input type="email" name="email" />
-    <input type="password" name="password" />
+    <input type="email" name="email" placeholder="email" />
+    <input type="password" name="password" placeholder="password" />
     <button type="submit">Log In</button>
   </form>;
 }

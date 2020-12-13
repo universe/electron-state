@@ -23,7 +23,6 @@ describe('Application launch', function() {
   it('shows an initial window', function() {
     return this.app.client.getWindowCount().then(function(count: number) {
       assert.strictEqual(count, 1);
-      return new Promise((resolve) => setTimeout(resolve, 100000));
     });
   });
 });

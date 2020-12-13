@@ -1,5 +1,5 @@
 /* eslint-disable no-use-before-define */
-import { IpcMainEvent, IpcRendererEvent, ipcRenderer, ipcMain, app, BrowserWindow } from 'electron';
+import { IpcMainEvent, IpcRendererEvent, ipcRenderer, ipcMain, BrowserWindow } from 'electron';
 
 const IS_RENDERER = (process && process.type === 'renderer');
 const INTERNAL = Symbol('state-store-state');
@@ -109,12 +109,6 @@ export default class StateStore {
       ipcMain.on(init, async(e: IpcMainEvent) => {
         this[INTERNAL].generation = (this[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
         e.sender.send(name, this[INTERNAL].generation, { ...this });
-      });
-
-      // On window focus, re-sync remote.
-      app.on('browser-window-focus', async(_, win) => {
-        this[INTERNAL].generation = (this[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
-        win.webContents.send(name, this[INTERNAL].generation, { ...this });
       });
 
       ipcMain.on(name, async(e: IpcMainEvent, generation: number, data: State<this>) => {

@@ -1,8 +1,8 @@
 # Electron Store
-
 React-like IPC backed state objects for Electron.
 
 ## Example
+You can run this example yourself! Just run `yarn start` in this repo to play with this dummy login flow. The files live in this repo at `/test/app`.
 
 ### UserState.ts
 ```ts
@@ -59,6 +59,8 @@ export default class UserState extends ElectronState {
 
 ### main.ts
 ```ts
+import { app, BrowserWindow } from 'electron';
+
 // You can import your custom `ElectronState` models into the main process.
 import UserState from './UserState';
 
@@ -70,6 +72,11 @@ UserState.onChange((user) => {
     // As defined in our UserState class, the `UserState.logOut()` method will always be run in the renderer process.
     setTimeout(() => UserState.logOut(), 10000);
   }
+});
+
+app.whenReady().then(() => {
+  const win = new BrowserWindow({ width: 800, height: 600 });
+  win.loadFile('/static/index.html'));
 });
 ```
 
