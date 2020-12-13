@@ -1,6 +1,6 @@
 {
   "name": "electron-state",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "React-like IPC backed state objects for Electron.",
   "main": "index.js",
   "types": "index.d.ts",
@@ -15,6 +15,10 @@
   },
   "author": "Adam Miller <adam@universe.app>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/universe/electron-state.git"
+  },
   "files": [
     "!dist",
     "index.*",
