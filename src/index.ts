@@ -5,20 +5,20 @@ const IS_RENDERER = (process && process.type === 'renderer');
 const INTERNAL = Symbol('state-store-state');
 function * idGen(i = 0) { while (true) { i = (i + 1) % Number.MAX_SAFE_INTEGER; yield i; } }
 const uuid = idGen();
-type StateStoreKeys = keyof StateStore | typeof INTERNAL;
+type ElectronStateKeys = keyof ElectronState | typeof INTERNAL;
 type FilterType<Base, Condition> = Pick<Base, { [Key in keyof Base]: Base[Key] extends Condition ? never : Key }[keyof Base]>;
 type IPCMethodTypes = 'static' | 'instance';
 
-export interface StaticProps<T extends StateStore> { new (): T }
-export type State<T> = FilterType<Pick<T, Exclude<keyof T, StateStoreKeys>>, typeof StateStore>;
-export type NewState<T extends StateStore> = Partial<State<T>>
+export interface StaticProps<T extends ElectronState> { new (): T }
+export type State<T> = FilterType<Pick<T, Exclude<keyof T, ElectronStateKeys>>, typeof ElectronState>;
+export type NewState<T extends ElectronState> = Partial<State<T>>
 
 /* eslint-disable  @typescript-eslint/no-explicit-any */
-export type StateStoreMethod<T extends StateStore> = (this: T | StaticProps<T>, ...args: any[]) => Promise<any>;
-export type StateCallback<T extends StateStore> = (state: State<T>) => any;
+export type ElectronStateMethod<T extends ElectronState> = (this: T | StaticProps<T>, ...args: any[]) => Promise<any>;
+export type StateCallback<T extends ElectronState> = (state: State<T>) => any;
 /* eslint-enable  @typescript-eslint/no-explicit-any */
 
-interface InternalStateStoreState<T extends StateStore> {
+interface InternalElectronState<T extends ElectronState> {
   name: string;
   renderers: Set<StateCallback<T>>;
   timeout: NodeJS.Timeout | null;
@@ -27,14 +27,14 @@ interface InternalStateStoreState<T extends StateStore> {
   animationFrameRef: number;
 }
 
-const notify = async(state: StateStore) => {
+const notify = async(state: ElectronState) => {
   for (const renderer of state[INTERNAL].renderers) {
     renderer.call(state, { ...state });
   }
 };
 
-const CACHE: Map<StaticProps<StateStore>, StateStore> = new Map();
-function ensureInstance<T extends StateStore>(constructor: StaticProps<T>): T {
+const CACHE: Map<StaticProps<ElectronState>, ElectronState> = new Map();
+function ensureInstance<T extends ElectronState>(constructor: StaticProps<T>): T {
   const singleton = CACHE.get(constructor);
   if (singleton) { return singleton as T; }
   const inst = new constructor();
@@ -42,11 +42,11 @@ function ensureInstance<T extends StateStore>(constructor: StaticProps<T>): T {
   return inst as T;
 }
 
-export default class StateStore {
+export default class ElectronState {
   private static syncInterval: NodeJS.Timer | null;
-  private static toSync: Set<StateStore> = new Set();
+  private static toSync: Set<ElectronState> = new Set();
 
-  private [INTERNAL]: InternalStateStoreState<this> = {
+  private [INTERNAL]: InternalElectronState<this> = {
     name: '',
     renderers: new Set(),
     timeout: null,
@@ -57,9 +57,9 @@ export default class StateStore {
 
   constructor() {
     // Enforce a process-wide singleton regardless of environment.
-    const singleton = CACHE.get(this.constructor as typeof StateStore);
+    const singleton = CACHE.get(this.constructor as typeof ElectronState);
     if (singleton) { return singleton; }
-    CACHE.set(this.constructor as typeof StateStore, this);
+    CACHE.set(this.constructor as typeof ElectronState, this);
     const name = this[INTERNAL].name = this.constructor.name;
 
     // Make sure our internal state property is non enumerable and can't be written over.
@@ -137,28 +137,28 @@ export default class StateStore {
     }
 
     // Kick off the sync interval if we haven't already.
-    if (!StateStore.syncInterval) {
-      StateStore.syncInterval = setInterval(StateStore.sync, 30);
+    if (!ElectronState.syncInterval) {
+      ElectronState.syncInterval = setInterval(ElectronState.sync, 30);
     }
 
     /* eslint-enable @typescript-eslint/no-var-requires */
     return this;
   }
 
-  private static async sync<T extends StateStore>(this: StaticProps<T>) {
+  private static async sync<T extends ElectronState>(this: StaticProps<T>) {
     if (IS_RENDERER) {
-      for (const store of StateStore.toSync) {
+      for (const store of ElectronState.toSync) {
         ipcRenderer.send(store.constructor.name, store[INTERNAL].generation, { ...store });
-        StateStore.toSync.delete(store);
+        ElectronState.toSync.delete(store);
       }
     }
     else {
-      for (const store of StateStore.toSync) {
+      for (const store of ElectronState.toSync) {
         store[INTERNAL].generation = (store[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
         for (const window of BrowserWindow.getAllWindows()) {
           window.webContents.send(store.constructor.name, store[INTERNAL].generation, { ...store });
         }
-        StateStore.toSync.delete(store);
+        ElectronState.toSync.delete(store);
       }
     }
   }
@@ -177,40 +177,40 @@ export default class StateStore {
     return { ...this };
   }
 
-  static async setState<T extends StateStore>(this: Function & StaticProps<T>, patch: NewState<T>, immediate = false): Promise<void> {
+  static async setState<T extends ElectronState>(this: Function & StaticProps<T>, patch: NewState<T>, immediate = false): Promise<void> {
     const instance = ensureInstance<T>(this);
     if (IS_RENDERER) {
       Object.assign(instance, patch);
       if (immediate) { ipcRenderer.send(instance.constructor.name, instance[INTERNAL].generation, instance); }
-      else { StateStore.toSync.add(instance); }
+      else { ElectronState.toSync.add(instance); }
       await notify(instance);
     }
     else {
       Object.assign(instance, patch);
       instance[INTERNAL].generation = (instance[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
-      StateStore.toSync.add(instance);
-      if (immediate) { await StateStore.sync(); }
+      ElectronState.toSync.add(instance);
+      if (immediate) { await ElectronState.sync(); }
       await notify(instance);
     }
   }
 
-  static onChange<T extends StateStore>(this: StaticProps<T>, cb: StateCallback<T>): void {
+  static onChange<T extends ElectronState>(this: StaticProps<T>, cb: StateCallback<T>): void {
     ensureInstance<T>(this)[INTERNAL].renderers.add(cb);
   }
 
-  static off<T extends StateStore>(this: StaticProps<T>, cb: StateCallback<T>): void {
+  static off<T extends ElectronState>(this: StaticProps<T>, cb: StateCallback<T>): void {
     ensureInstance<T>(this)[INTERNAL].renderers.delete(cb);
   }
 
-  static toJSON<T extends StateStore>(this: StaticProps<T>): State<T> {
+  static toJSON<T extends ElectronState>(this: StaticProps<T>): State<T> {
     return ensureInstance<T>(this).toJSON();
   }
 
-  static data<T extends StateStore>(this: StaticProps<T>): Promise<State<T>> {
+  static data<T extends ElectronState>(this: StaticProps<T>): Promise<State<T>> {
     return ensureInstance<T>(this).data();
   }
 
-  static main<T extends StateStore>(this: StaticProps<StateStore>, func: StateStoreMethod<T>): typeof func {
+  static main<T extends ElectronState>(this: StaticProps<ElectronState>, func: ElectronStateMethod<T>): typeof func {
     if (!IS_RENDERER) { return func; }
     const funcName = `${func.name}MainProxy`;
     // Jump through a couple hoops here to have a sensible function name in dev tools.
@@ -230,7 +230,7 @@ export default class StateStore {
     })[funcName];
   }
 
-  static renderer<T extends StateStore>(this: StaticProps<StateStore>, func: StateStoreMethod<T>): typeof func {
+  static renderer<T extends ElectronState>(this: StaticProps<ElectronState>, func: ElectronStateMethod<T>): typeof func {
     if (IS_RENDERER) { return func; }
     // Jump through a couple hoops here to have a sensible function name in dev tools.
     const funcName = `${func.name}RendererProxy`;

@@ -1,11 +1,10 @@
 import { Dispatch, SetStateAction, useLayoutEffect, useState } from 'react';
 
-// import { OutreachState } from '../Stores';
 import { State } from './index';
 
 type StateUpdater<S> = Dispatch<SetStateAction<S>>;
 /* eslint-disable  @typescript-eslint/no-explicit-any */
-interface IStateStore {
+interface IElectronState {
   new(): any;
   toJSON: () => any;
   onChange: (cb: (state: any) => void) => void;
@@ -14,7 +13,7 @@ interface IStateStore {
 }
 /* eslint-enable  @typescript-eslint/no-explicit-any */
 
-export function useElectronState<Store extends IStateStore>(store: Store): [State<InstanceType<Store>>, (patch: Partial<InstanceType<Store>>) => Promise<void>] {
+export function useElectronState<Store extends IElectronState>(store: Store): [State<InstanceType<Store>>, (patch: Partial<InstanceType<Store>>) => Promise<void>] {
   let setStore: StateUpdater<Partial<State<InstanceType<Store>>>> | null = null;
   let storeState: State<InstanceType<Store>> | null = null;
 

@@ -1,4 +1,4 @@
-# Electron Store
+# Electron State
 React-like IPC backed state objects for Electron.
 
 ## Example

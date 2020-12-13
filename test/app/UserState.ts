@@ -1,5 +1,5 @@
 
-import ElectronState, { main, renderer } from '../../src';
+import ElectronState, { main, renderer, State } from '../../src';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
 export default class UserState extends ElectronState {
@@ -31,7 +31,7 @@ export default class UserState extends ElectronState {
   // The `@renderer` decorator forces async methods to run in Electron's renderer process.
   @renderer static async logOut(): Promise<void> {
     // Access state data by calling `ElectronState.toJSON()`
-    const data = UserState.toJSON();
+    const data: State<UserState> = UserState.toJSON();
 
     if (!data.isLoggedIn) { return; }
 
