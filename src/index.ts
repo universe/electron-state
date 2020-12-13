@@ -42,7 +42,7 @@ function ensureInstance<T extends ElectronState>(constructor: StaticProps<T>): T
   return inst as T;
 }
 
-export default class ElectronState {
+export class ElectronState {
   private static syncInterval: NodeJS.Timer | null;
   private static toSync: Set<ElectronState> = new Set();
 

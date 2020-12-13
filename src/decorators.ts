@@ -1,4 +1,4 @@
-import ElectronState, { ElectronStateMethod, StaticProps } from './index';
+import { ElectronState, ElectronStateMethod, StaticProps } from './index';
 
 export function main<T extends ElectronState>(target: T | StaticProps<T>, key: string, descriptor: TypedPropertyDescriptor<ElectronStateMethod<T>>): void {
   if (typeof target[key] !== 'function' || !descriptor.value) {

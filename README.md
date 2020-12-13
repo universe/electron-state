@@ -6,7 +6,7 @@ You can run this example yourself! Just run `yarn start` in this repo to play wi
 
 ### UserState.ts
 ```ts
-import ElectronState, { main, renderer, State } from 'electron-state';
+import { ElectronState, main, renderer, State } from 'electron-state';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
 export default class UserState extends ElectronState {

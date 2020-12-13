@@ -1,5 +1,5 @@
 
-import ElectronState, { main, renderer, State } from '../../src';
+import { ElectronState, main, renderer, State } from '../../src';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
 export default class UserState extends ElectronState {
