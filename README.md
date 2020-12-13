@@ -6,7 +6,7 @@ You can run this example yourself! Just run `yarn start` in this repo to play wi
 
 ### UserState.ts
 ```ts
-import ElectronState, { main, renderer } from 'electron-state';
+import ElectronState, { main, renderer, State } from 'electron-state';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
 export default class UserState extends ElectronState {
@@ -40,7 +40,7 @@ export default class UserState extends ElectronState {
   // The `@renderer` decorator forces async methods to run in Electron's renderer process.
   @renderer static async logOut(): Promise<void> {
     // Access state data at any time by calling `ElectronState.toJSON()`
-    const data = UserState.toJSON();
+    const data: State<UserState> = UserState.toJSON();
 
     if (!data.isLoggedIn) { return; }
 
