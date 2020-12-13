@@ -86,7 +86,7 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 
 // ElectronState delivers a React hook for your convenience.
-import { useElectronState } from 'electron-state';
+import { useElectronState } from 'electron-state/hooks';
 
 // You can import your custom `ElectronState` models into the renderer process.
 import UserState from './UserState';
