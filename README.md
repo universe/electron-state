@@ -2,8 +2,10 @@
 
 React-like IPC backed state objects for Electron.
 
+## Example
+
+### UserState.ts
 ```ts
-// UserState.ts
 import ElectronState, { main, renderer } from 'electron-state';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
@@ -54,9 +56,10 @@ export default class UserState extends ElectronState {
   }
 }
 ```
+
+### main.ts
 ```ts
-// main.ts
-// You can import your custom `ElectronState` models in the main process.
+// You can import your custom `ElectronState` models into the main process.
 import UserState from './UserState';
 
 // The main process can listen for changes to the state object. It is passed a copy of the state data.
@@ -69,11 +72,16 @@ UserState.onChange((user) => {
   }
 });
 ```
+
+### app.tsx
 ```tsx
-// app.tsx
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
+
+// ElectronState delivers a React hook for your convenience.
 import { useElectronState } from 'electron-state';
+
+// You can import your custom `ElectronState` models into the renderer process.
 import UserState from './UserState';
 
 async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
@@ -91,7 +99,7 @@ async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
 }
 
 function App() {
-  // ElectronState delivers a React hook for your convenience to integrate IPC backed state with your React components.
+  // ElectronState delivers a React hook for your convenience.
   const [ user, setUser ] = useElectronState(UserState);
 
   if (user.isLoggedIn) {
