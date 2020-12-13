@@ -2,7 +2,7 @@ module.exports =  {
   parser:  '@typescript-eslint/parser',  // Specifies the ESLint parser
   extends:  [
     'standard',
-    'standard-preact',
+    'standard-react',
     'plugin:@typescript-eslint/recommended',
   ],
   parserOptions:  {

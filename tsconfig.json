@@ -5,9 +5,9 @@
     "baseUrl": "dist",
     "lib": [ "es7", "es2017", "dom" ],
 
-    // JSX Settings for Preact
+    // JSX Settings for React
     "jsx": "react",
-    "jsxFactory": "h",
+    "jsxFactory": "React.createElement",
 
     // Compilation Configuration
     "target": "es2015",
