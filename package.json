@@ -1,6 +1,6 @@
 {
   "name": "electron-state",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "description": "React-like IPC backed state objects for Electron.",
   "main": "index.js",
   "types": "index.d.ts",
