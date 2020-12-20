@@ -8,6 +8,7 @@ export default class UserState extends ElectronState {
   firstName: string | null = null;
   lastName: string | null = null;
   email: string | null = null;
+  ttl = 0;
 
   // The `@main` decorator forces async methods to run in Electron's main process.
   @main static async logIn(email: string, password: string): Promise<boolean> {

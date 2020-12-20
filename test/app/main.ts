@@ -6,12 +6,22 @@ import UserState from './UserState';
 // The main process can listen for changes to the state object.
 let logoutTimer: NodeJS.Timeout | null;
 UserState.onChange((user) => {
-  logoutTimer && clearTimeout(logoutTimer);
-  if (user.isLoggedIn) {
+  if (user.isLoggedIn && user.ttl === 0 && !logoutTimer) {
     console.log(`${user.firstName} ${user.lastName} has logged in. Auto logging out in 10s.`);
-    logoutTimer = setTimeout(() => UserState.logOut(), 10000);
+    UserState.setState({ ttl: 10 });
+    logoutTimer = setTimeout(() => {
+      logoutTimer = null;
+      UserState.logOut();
+    }, 10000);
   }
 });
+
+setInterval(() => {
+  const { ttl } = UserState.toJSON();
+  if (ttl > 0) {
+    UserState.setState({ ttl: ttl - 1 });
+  }
+}, 1000);
 
 app.whenReady().then(() => {
   const win = new BrowserWindow({

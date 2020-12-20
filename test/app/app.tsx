@@ -13,7 +13,7 @@ async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
     return;
   }
   const logInSuccess = await UserState.logIn(email, password);
-  alert(logInSuccess ? 'Successfully logged in!' : 'Incorrect login information. Use the password "password".');
+  !logInSuccess && alert('Incorrect login information. Use the password "password".');
 }
 
 function App(): JSX.Element {
@@ -21,6 +21,7 @@ function App(): JSX.Element {
   if (user.isLoggedIn) {
     return <section>
       <h1>{user.firstName} {user.lastName} is Logged In</h1>
+      <h2>Logging out in: {user.ttl}</h2>
       <button onClick={() => setUser({ isLoggedIn: false })}>Log Out</button>
     </section>;
   }
