@@ -9,7 +9,7 @@ type ElectronStateKeys = keyof ElectronState | typeof INTERNAL;
 type FilterType<Base, Condition> = Pick<Base, { [Key in keyof Base]: Base[Key] extends Condition ? never : Key }[keyof Base]>;
 type IPCMethodTypes = 'static' | 'instance';
 
-export interface StaticProps<T extends ElectronState> { new (): T }
+export interface StaticProps<T extends ElectronState> { new (bare?: true): T; }
 export type State<T> = FilterType<Pick<T, Exclude<keyof T, ElectronStateKeys>>, typeof ElectronState>;
 export type NewState<T extends ElectronState> = Partial<State<T>>
 
@@ -55,7 +55,10 @@ export class ElectronState {
     animationFrameRef: 0,
   }
 
-  constructor() {
+  constructor(bare?: true) {
+    // If we request a bare instance (properties only) do nothing here.
+    if (bare) { return this; }
+
     // Enforce a process-wide singleton regardless of environment.
     const singleton = CACHE.get(this.constructor as typeof ElectronState);
     if (singleton) { return singleton; }
@@ -167,14 +170,18 @@ export class ElectronState {
     if (IS_RENDERER && !this[INTERNAL].initialized) {
       ipcRenderer.send(`${this[INTERNAL].name}-init`);
     }
-    return { ...this };
+    const data: State<this> = { ...this };
+    delete data[INTERNAL];
+    return data;
   }
 
   async data(): Promise<State<this>> {
     if (IS_RENDERER && !this[INTERNAL].initialized) {
       ipcRenderer.send(`${this[INTERNAL].name}-init`);
     }
-    return { ...this };
+    const data: State<this> = { ...this };
+    delete data[INTERNAL];
+    return data;
   }
 
   static async setState<T extends ElectronState>(this: Function & StaticProps<T>, patch: NewState<T>, immediate = false): Promise<void> {
@@ -200,6 +207,11 @@ export class ElectronState {
 
   static off<T extends ElectronState>(this: StaticProps<T>, cb: StateCallback<T>): void {
     ensureInstance<T>(this)[INTERNAL].renderers.delete(cb);
+  }
+
+  static async reset<T extends ElectronState>(this: StaticProps<T>): Promise<void> {
+    const data: ElectronState = new this(true);
+    return (this as unknown as typeof ElectronState).setState(data.toJSON(), true);
   }
 
   static toJSON<T extends ElectronState>(this: StaticProps<T>): State<T> {
