@@ -1,4 +1,4 @@
-import { Dispatch, SetStateAction, useLayoutEffect, useState } from 'react';
+import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 
 import { State } from './index';
 
@@ -30,7 +30,7 @@ export function useElectronState<Store extends IElectronState>(store: Store): [S
 
   // For the reasons described above, we can't use useLayoutEffect to bind change events. However, we do
   // need to use it for its teardown method to stop listening to events and prevent memory leaks!
-  useLayoutEffect(() => () => store.off(onChange), []);
+  useEffect(() => { store.onChange(onChange); return () => store.off(onChange); }, []);
 
   return [ storeState as State<InstanceType<Store>>, store.setState.bind(store) as (patch: Partial<InstanceType<Store>>) => Promise<void> ];
 }
