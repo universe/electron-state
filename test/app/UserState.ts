@@ -1,8 +1,9 @@
 
-import { ElectronState, main, renderer, State } from '../../src';
+import { SharedState, main, renderer, State } from '../../src';
+import WebsocketTransport from '../../src/transports/websocket';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
-export default class UserState extends ElectronState {
+export default class UserState extends SharedState(new WebsocketTransport('ws://localhost:8080')) {
   // Properties declared on your model define the interface of this state object.
   isLoggedIn = false;
   firstName: string | null = null;
