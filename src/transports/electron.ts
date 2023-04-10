@@ -1,6 +1,8 @@
-import { IpcMainEvent, IpcRendererEvent, ipcRenderer, ipcMain, BrowserWindow } from 'electron';
+import electron, { IpcRendererEvent, IpcMainEvent } from 'electron';
 
 import { Transport, TransportEventCallback } from './types.js';
+
+const { ipcRenderer, ipcMain, BrowserWindow } = electron;
 
 export default class ElectronTransport extends Transport {
   isRenderer(): boolean {

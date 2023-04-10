@@ -1,6 +1,6 @@
 import { Dispatch, SetStateAction, useEffect, useState } from 'react';
 
-import { State } from './index';
+import { State } from './types.js';
 
 type StateUpdater<S> = Dispatch<SetStateAction<S>>;
 /* eslint-disable  @typescript-eslint/no-explicit-any */

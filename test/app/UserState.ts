@@ -1,6 +1,6 @@
 
-import { SharedState, main, renderer, State } from '../../src';
-import WebsocketTransport from '../../src/transports/websocket';
+import { SharedState, main, renderer, State } from '../../src/index.js';
+import WebsocketTransport from '../../src/transports/websocket.js';
 
 // Extend the `ElectronState` base class to create a new IPC based shared memory model.
 export default class UserState extends SharedState(new WebsocketTransport('ws://localhost:8080')) {
@@ -14,7 +14,7 @@ export default class UserState extends SharedState(new WebsocketTransport('ws://
   // The `@main` decorator forces async methods to run in Electron's main process.
   @main static async logIn(email: string, password: string): Promise<boolean> {
     // If you need code that can / should only execute in one process, make sure you import it only as needed.
-    const { db } = await import('./database');
+    const { db } = await import('./database.js');
 
     const user = await db.users.getByEmail(email);
     if (user?.password !== password) { return false; }

@@ -1,8 +1,8 @@
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
-import { useElectronState } from '../../src/hooks';
+import { useElectronState } from '../../src/hooks.js';
 
-import UserState from './UserState';
+import UserState from './UserState.js';
 
 async function handleSubmit(evt: React.FormEvent<HTMLFormElement>) {
   evt.preventDefault();

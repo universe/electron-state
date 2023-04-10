@@ -1,8 +1,8 @@
 {
   "include": [ "src/**/*", "test/**/*" ],
   "compilerOptions": {
-    "outDir": "esm",
-    "baseUrl": "esm",
+    "outDir": "cjs",
+    "baseUrl": "cjs",
     "lib": [ "es7", "es2017", "dom" ],
 
     // JSX Settings for React
@@ -10,7 +10,7 @@
     "jsxFactory": "React.createElement",
 
     // Compilation Configuration
-    "target": "ESNext",
+    "target": "es2015",
     "inlineSources": true,
     "sourceMap": true,
     "declaration": true,
@@ -18,7 +18,7 @@
 
     // Environment Configuration
     "experimentalDecorators": true,
-    "moduleResolution": "nodenext",
+    "moduleResolution": "node",
     "resolveJsonModule": true,
     "skipLibCheck": true,
 
@@ -40,6 +40,6 @@
     "preserveConstEnums": false,
     "newLine": "LF",
     "traceResolution": false,
-    "module": "ESNext",
+    "module": "commonjs"
   }
 }

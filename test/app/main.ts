@@ -1,7 +1,7 @@
 import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 
-import UserState from './UserState';
+import UserState from './UserState.js';
 
 // The main process can listen for changes to the state object.
 let logoutTimer: NodeJS.Timeout | null;

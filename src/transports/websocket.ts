@@ -3,7 +3,7 @@ import { WebSocket, WebSocketServer, ServerOptions, ClientOptions } from 'ws';
 
 const instances: SocketTransport[] = [];
 let wss: WebSocketServer;
-let ws: WebSocket;
+let ws: WebSocket | globalThis.WebSocket;
 
 const DEFAULT_SERVER_OPTIONS: ServerOptions = {
   port: 8080,
@@ -33,7 +33,7 @@ export default class SocketTransport extends Transport {
     super();
 
     if (!address.startsWith('ws://') && !address.startsWith('wss://')) {
-      throw new Error('Valid websocket address is required.')
+      throw new Error(`Valid websocket address is required. Instead received "${address}"`)
     }
 
     let port: number = parseInt(address.split(':')[2]);
@@ -44,20 +44,38 @@ export default class SocketTransport extends Transport {
 
     if (this.isRenderer()) {
       if (ws) { return; }
-      ws = new WebSocket(address, Object.assign({ perMessageDeflate: false }, clientOptions));
-      ws.on('message', (data: string) => {
-        const [name, ...args] = JSON.parse(data);
-        for (const instance of instances) {
-          const callbacks = instance.listeners.get(name);
-          for (const tuple of callbacks || []) {
-            const [type, cb] = tuple;
-            cb({ send(name: string, ...args: any[]) {
-              ws.send(JSON.stringify([ name, ...args ]));
-            }}, ...args);
-            (type === 'once') && callbacks?.delete(tuple);
+      if (globalThis.WebSocket) {
+        ws = new globalThis.WebSocket(address);
+        ws.addEventListener('message', (data: MessageEvent) => {
+          const [name, ...args] = typeof data.data === 'string' ? JSON.parse(data.data) : data.data;
+          for (const instance of instances) {
+            const callbacks = instance.listeners.get(name);
+            for (const tuple of callbacks || []) {
+              const [type, cb] = tuple;
+              cb({ send(name: string, ...args: any[]) {
+                ws.send(JSON.stringify([ name, ...args ]));
+              }}, ...args);
+              (type === 'once') && callbacks?.delete(tuple);
+            }
           }
-        }
-      });
+        });
+      }
+      else {
+        ws = new WebSocket(address, Object.assign({ perMessageDeflate: false }, clientOptions));
+        ws.on('message', (data: string) => {
+          const [name, ...args] = JSON.parse(data);
+          for (const instance of instances) {
+            const callbacks = instance.listeners.get(name);
+            for (const tuple of callbacks || []) {
+              const [type, cb] = tuple;
+              cb({ send(name: string, ...args: any[]) {
+                ws.send(JSON.stringify([ name, ...args ]));
+              }}, ...args);
+              (type === 'once') && callbacks?.delete(tuple);
+            }
+          }
+        });
+      }
     } else {
       if (wss) { return; }
       wss = new WebSocketServer(Object.assign(DEFAULT_SERVER_OPTIONS, serverOptions));

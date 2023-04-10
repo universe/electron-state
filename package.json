@@ -1,17 +1,36 @@
 {
   "name": "electron-state",
-  "version": "0.3.1",
+  "version": "0.5.8",
   "description": "React-like IPC backed state objects for Electron.",
-  "main": "index.js",
-  "types": "index.d.ts",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./esm/src/index.js",
+      "require": "./cjs/src/index.js",
+      "types": "./esm/src/index.d.ts"
+    },
+    "./hooks": {
+      "import": "./esm/src/hooks.js",
+      "require": "./cjs/src/hooks.js",
+      "types": "./esm/src/hooks.d.ts"
+    },
+    "./decorators": {
+      "import": "./esm/src/decorators.js",
+      "require": "./cjs/src/decorators.js",
+      "types": "./esm/src/decorators.d.ts"
+    },
+    "./transports/*": {
+      "import": "./esm/src/transports/*",
+      "require": "./cjs/src/transports/*",
+      "types": "./esm/src/transports/*"
+    }
+  },
   "scripts": {
-    "build": "rm -rf dist && tsc --b tsconfig.json",
+    "build": "rm -rf dist && tsc --b tsconfig.json && tsc --b cjs.tsconfig.json",
     "start": "yarn build && electron ./dist/test/app/main.js",
     "test": "yarn lint && mocha test dist/test",
     "lint": "eslint **/*.ts",
-    "lint:fix": "eslint **/*.ts --fix",
-    "prepublishOnly": "yarn build && cp dist/src/index.* . && cp dist/src/hooks.* . && cp dist/src/decorators.* . && mkdir ./transports && cp dist/src/transports/* ./transports",
-    "postpublish": "rm -f ./index.* && rm -f ./hooks.* && rm -f ./decorators.* && rm -rf ./transports"
+    "lint:fix": "eslint **/*.ts --fix"
   },
   "author": "Adam Miller <adam@universe.app>",
   "license": "MIT",
@@ -20,11 +39,10 @@
     "url": "https://github.com/universe/electron-state.git"
   },
   "files": [
-    "!dist",
-    "index.*",
-    "hooks.*",
-    "decorators.*",
-    "transports/*"
+    "cjs/src",
+    "esm/src",
+    "!cjs/test",
+    "!esm/test"
   ],
   "husky": {
     "hooks": {

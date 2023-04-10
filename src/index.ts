@@ -1,71 +1,50 @@
 /* eslint-disable no-use-before-define */
 import { Transport, IPCMethodTypes, TransportSender } from './transports/types.js';
+import AbstractState, { INTERNAL, StateConstructor, State, NewState, ensureInstance, AbstractStateAPI, AbstractStateMethod, AbstractStateMethods } from './types.js';
 
-const INTERNAL = Symbol('state-store-state');
 function * idGen(i = 0) { while (true) { i = (i + 1) % Number.MAX_SAFE_INTEGER; yield i; } }
 const uuid = idGen();
 
-type ElectronStateKeys = keyof ElectronState | typeof INTERNAL;
-type FilterType<Base, Condition> = Pick<Base, { [Key in keyof Base]: Base[Key] extends Condition ? never : Key }[keyof Base]>;
-
-export interface StaticProps<T extends ElectronState> { new (bare?: true): T; }
-export type State<T> = FilterType<Pick<T, Exclude<keyof T, ElectronStateKeys>>, typeof ElectronState>;
-export type NewState<T extends ElectronState> = Partial<State<T>>
-
-/* eslint-disable  @typescript-eslint/no-explicit-any */
-export type ElectronStateMethod<T extends ElectronState> = (this: T | StaticProps<T>, ...args: any[]) => Promise<any>;
-export type StateCallback<T extends ElectronState> = (state: State<T>) => any;
-/* eslint-enable  @typescript-eslint/no-explicit-any */
+export type { State, NewState, StateConstructor, AbstractState, AbstractStateAPI, AbstractStateMethod, AbstractStateMethods }
 
 interface InternalStaticState {
-  transport: Transport;
+  uid: string;
+  transport: Transport | null;
 }
 
-interface InternalElectronState<T extends ElectronState> {
-  name: string;
-  renderers: Set<StateCallback<T>>;
+interface InternalElectronState {
   timeout: NodeJS.Timeout | null;
   generation: number;
   initialized: boolean | NodeJS.Timer;
   animationFrameRef: number;
 }
 
-const notify = async(state: ElectronState) => {
-  for (const renderer of state[INTERNAL].renderers) {
-    renderer.call(state, { ...state });
-  }
-};
-
-const CACHE: Map<StaticProps<ElectronState>, ElectronState> = new Map();
-function ensureInstance<T extends ElectronState>(constructor: StaticProps<T>): T {
-  const singleton = CACHE.get(constructor);
-  if (singleton) { return singleton as T; }
-  const inst = new constructor();
-  CACHE.set(constructor, inst);
-  return inst as T;
-}
-
-function getTransport<T extends ElectronState | StaticProps<ElectronState>>(state: T): Transport {
-  // Grab our instance's transport object
-  if (state.constructor.name === 'Timeout') {
-    process.exit();
-  }
+function getUid<T extends ElectronState | typeof Electron | InstanceType<typeof ElectronState> | StateConstructor<ElectronState>>(state: T): string {
   const klass = typeof state === 'function' ? state as unknown as typeof ElectronState : (state.constructor as unknown as typeof ElectronState);
-  return klass[INTERNAL].transport;
+  if (!klass[INTERNAL]) { throw new Error('Invalid state object. Did you forget to bind a SharedState method?'); }
+  const uid = klass[INTERNAL].uid;
+  if (uid) { return uid; }
+  if (klass.name) { return klass[INTERNAL].uid = klass.name; }
+  throw new Error(`No uid set for state object "${klass.constructor.name}"`)
 }
 
-export class ElectronState {
+function getTransport<T extends ElectronState | typeof Electron | StateConstructor<ElectronState>>(state: T): Transport {
+  const klass = typeof state === 'function' ? state as unknown as typeof ElectronState : (state.constructor as unknown as typeof ElectronState);
+  if (!klass[INTERNAL]) { throw new Error('Invalid state object. Did you forget to bind a SharedState method?'); }
+  const transport =  klass[INTERNAL].transport;
+  if (!transport) { throw new Error(`No transport for state object "${klass.constructor.name}"`)}
+  return transport;
+}
+
+export class ElectronState extends AbstractState<InternalElectronState> {
   private static syncInterval: NodeJS.Timer | null;
   private static toSync: Set<ElectronState> = new Set();
-  static [INTERNAL]: InternalStaticState = {
-    /* eslint-disable-next-line */
-    /* @ts-ignore-next-line */
+  static [INTERNAL]?: InternalStaticState = {
     transport: null,
+    uid: '',
   };
 
-  private [INTERNAL]: InternalElectronState<this> = {
-    name: '',
-    renderers: new Set(),
+  [INTERNAL]?: InternalElectronState = {
     timeout: null,
     generation: 0,
     initialized: false,
@@ -73,37 +52,26 @@ export class ElectronState {
   }
 
   constructor(bare?: true) {
-    // If we request a bare instance (properties only) do nothing here.
+    super(bare)
     if (bare) { return this; }
-
+  
     // Grab our instance's transport object
     const transport = getTransport(this);
-
-    // Enforce a process-wide singleton regardless of environment.
-    const singleton = CACHE.get(this.constructor as typeof ElectronState);
-    if (singleton) { return singleton; }
-    CACHE.set(this.constructor as typeof ElectronState, this);
-    const name = this[INTERNAL].name = this.constructor.name;
-
-    // Make sure our internal state property is non enumerable and can't be written over.
-    Object.defineProperty(this, INTERNAL, {
-      writable: false,
-      enumerable: false,
-    });
-
+    const name = getUid(this);
     const init = `${name}-init`;
     /* eslint-disable @typescript-eslint/no-var-requires */
     if (transport.isRenderer()) {
       // Don't clone "this" on first pass. We need the parent constructor to augment it with default values!
       // We replace it after initialization with a clone below.
       transport.on(name, async(_: TransportSender, generation: number, initialState: State<this>) => {
+        if (!this[INTERNAL]) { return; }
         this[INTERNAL].initialized = true;
         this[INTERNAL].generation = generation;
         Object.assign(this, initialState);
-        notify(this);
+        (this.constructor as StateConstructor<this>).trigger();
       });
 
-      transport.on(`${this[INTERNAL].name}-call`, async(sender: TransportSender, type: IPCMethodTypes, name: keyof this, nonce: string, ...args: unknown[]) => {
+      transport.on(`${name}-call`, async(sender: TransportSender, type: IPCMethodTypes, name: keyof this, nonce: string, ...args: unknown[]) => {
         try {
           /* eslint-disable-next-line */
           /* @ts-ignore-next-line */
@@ -117,9 +85,11 @@ export class ElectronState {
 
       // Request for initialization until we get it. Backend may be bootstrapping while our loading page is up.
       const requestInit = () => {
+        if (!this[INTERNAL]) { return; }
         if (this[INTERNAL].initialized === true) { return; }
         transport.send(init);
         this[INTERNAL].initialized = setTimeout(() => {
+          if (!this[INTERNAL]) { return; }
           if (this[INTERNAL].initialized === true) { return; }
           this[INTERNAL].initialized = false;
           requestInit.bind(this)();
@@ -130,23 +100,23 @@ export class ElectronState {
     else {
       // On renderer init, send the full state.
       transport.on(init, async(sender: TransportSender) => {
+        if (!this[INTERNAL]) { return; }
         this[INTERNAL].generation = (this[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
         sender.send(name, this[INTERNAL].generation, { ...this });
       });
 
       transport.on(name, async(sender: TransportSender, generation: number, data: State<this>) => {
-        /* eslint-disable-next-line */
-        /* @ts-ignore-next-line */
+        if (!this[INTERNAL]) { return; }
         if (this[INTERNAL].generation !== generation) {
           sender.send(name, this[INTERNAL].generation, { ...this });
         }
         else {
           Object.assign(this, data);
-          notify(this);
+          (this.constructor as StateConstructor<this>).trigger();
         }
       });
 
-      transport.on(`${this[INTERNAL].name}-call`, async(sender: TransportSender, type: IPCMethodTypes, name: keyof this, nonce: string, ...args: unknown[]) => {
+      transport.on(`${name}-call`, async(sender: TransportSender, type: IPCMethodTypes, name: keyof this, nonce: string, ...args: unknown[]) => {
         try {
           /* eslint-disable-next-line */
           /* @ts-ignore-next-line */
@@ -168,17 +138,19 @@ export class ElectronState {
     return this;
   }
 
-  private static async sync<T extends ElectronState>(this: StaticProps<T>) {
+  private static async sync<T extends ElectronState>(this: StateConstructor<T>) {
     const transport = getTransport(this);
 
     if (transport.isRenderer()) {
       for (const store of ElectronState.toSync) {
+        if (!store[INTERNAL]) { continue; }
         transport.send(store.constructor.name, store[INTERNAL].generation, { ...store });
         ElectronState.toSync.delete(store);
       }
     }
     else {
       for (const store of ElectronState.toSync) {
+        if (!store[INTERNAL]) { continue; }
         store[INTERNAL].generation = (store[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
         transport.send(store.constructor.name, store[INTERNAL].generation, { ...store });
         // for (const window of BrowserWindow.getAllWindows()) {
@@ -189,75 +161,31 @@ export class ElectronState {
     }
   }
 
-  toJSON(): State<this> {
-    const transport = getTransport(this);
-
-    if (transport.isRenderer() && !this[INTERNAL].initialized) {
-      transport.send(`${this[INTERNAL].name}-init`);
-    }
-    const data: State<this> = { ...this };
-    delete data[INTERNAL];
-    return data;
-  }
-
-  async data(): Promise<State<this>> {
-    const transport = getTransport(this);
-
-    if (transport.isRenderer() && !this[INTERNAL].initialized) {
-      transport.send(`${this[INTERNAL].name}-init`);
-    }
-    const data: State<this> = { ...this };
-    delete data[INTERNAL];
-    return data;
-  }
-
-  static async setState<T extends ElectronState>(this: Function & StaticProps<T>, patch: NewState<T>, immediate = false): Promise<void> {
+  static async setState<T extends ElectronState>(this: StateConstructor<T>, patch: NewState<T>): Promise<void> {
     const transport = getTransport(this);
     const instance = ensureInstance<T>(this);
+    if (!instance[INTERNAL]) { return; }
     if (transport.isRenderer()) {
       Object.assign(instance, patch);
-      if (immediate) { transport.send(instance.constructor.name, instance[INTERNAL].generation, instance); }
-      else { ElectronState.toSync.add(instance); }
-      await notify(instance);
+      ElectronState.toSync.add(instance);
+      this.trigger();
     }
     else {
       Object.assign(instance, patch);
-      instance[INTERNAL].generation = (instance[INTERNAL].generation + 1) % Number.MAX_SAFE_INTEGER;
+      instance[INTERNAL].generation = ((instance[INTERNAL].generation || 0) + 1) % Number.MAX_SAFE_INTEGER;
       ElectronState.toSync.add(instance);
-      if (immediate) { await ElectronState.sync(); }
-      await notify(instance);
+      this.trigger();
     }
   }
 
-  static onChange<T extends ElectronState>(this: StaticProps<T>, cb: StateCallback<T>): void {
-    ensureInstance<T>(this)[INTERNAL].renderers.add(cb);
-  }
-
-  static off<T extends ElectronState>(this: StaticProps<T>, cb: StateCallback<T>): void {
-    ensureInstance<T>(this)[INTERNAL].renderers.delete(cb);
-  }
-
-  static async reset<T extends ElectronState>(this: StaticProps<T>): Promise<void> {
-    const data: ElectronState = new this(true);
-    return (this as unknown as typeof ElectronState).setState(data.toJSON(), true);
-  }
-
-  static toJSON<T extends ElectronState>(this: StaticProps<T>): State<T> {
-    return ensureInstance<T>(this).toJSON();
-  }
-
-  static data<T extends ElectronState>(this: StaticProps<T>): Promise<State<T>> {
-    return ensureInstance<T>(this).data();
-  }
-
-  static main<T extends ElectronState>(this: StaticProps<ElectronState>, func: ElectronStateMethod<T>): typeof func {
+  static main<T extends typeof ElectronState>(this: T, func: AbstractStateMethod<InstanceType<T>>): typeof func {
     const transport = getTransport(this);
     if (!transport.isRenderer()) { return func; }
     const funcName = `${func.name}MainProxy`;
     // Jump through a couple hoops here to have a sensible function name in dev tools.
     return ({
       [funcName](this: ThisParameterType<typeof func>, ...args: Parameters<typeof func>) {
-        const storeName = typeof this === 'function' ? this.name : this[INTERNAL].name;
+        const storeName = getUid(this as InstanceType<T>);
         const methodType = typeof this === 'function' ? 'static' : 'instance';
         const methodName = func.name;
         const nonce = uuid.next().value;
@@ -271,7 +199,7 @@ export class ElectronState {
     })[funcName];
   }
 
-  static renderer<T extends ElectronState>(this: StaticProps<ElectronState>, func: ElectronStateMethod<T>): typeof func {
+  static renderer<T extends typeof ElectronState>(this: T, func: AbstractStateMethod<InstanceType<T>>): typeof func {
     const transport = getTransport(this);
     if (transport.isRenderer()) { return func; }
 
@@ -279,7 +207,7 @@ export class ElectronState {
     const funcName = `${func.name}RendererProxy`;
     return ({
       [funcName](this: ThisParameterType<typeof func>, ...args: Parameters<typeof func>) {
-        const storeName = typeof this === 'function' ? this.name : this[INTERNAL].name;
+        const storeName = getUid(this as InstanceType<T>);
         const methodType = typeof this === 'function' ? 'static' : 'instance';
         const methodName = func.name;
         const nonce = uuid.next().value;
@@ -294,10 +222,29 @@ export class ElectronState {
   }
 }
 
-export function SharedState<T extends Transport>(transport: T): typeof ElectronState {
+export function SharedState<T extends Transport>(transport: T, uid?: string): typeof ElectronState {
   class TransportState extends ElectronState {}
-  TransportState[INTERNAL].transport = transport;
+  TransportState[INTERNAL] = {
+    transport,
+    uid: uid || '',
+  };
   return TransportState;
 }
 
-export { main, renderer } from './decorators';
+export { main, renderer } from './decorators.js';
+
+export class NoopState extends AbstractState<any> {
+  [INTERNAL]?: any = {}
+
+  /* eslint-disable-next-line */
+  static async setState<T extends NoopState>(this: StateConstructor<T>, patch: Partial<State<T>>): Promise<void> {
+    const instance = ensureInstance(this);
+    Object.assign(instance, patch);
+    this.trigger();
+    return;
+  }
+}
+
+// Typecheck Assertions
+NoopState as StateConstructor<NoopState>;
+ElectronState as StateConstructor<ElectronState>;

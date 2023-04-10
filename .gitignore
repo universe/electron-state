@@ -104,6 +104,8 @@ dist
 .tern-port
 
 dist
+cjs
+esm
 ./index.*
 ./hooks.*
 ./decorators.*
